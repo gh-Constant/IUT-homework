@@ -14,10 +14,10 @@ interface DashboardProps {
 }
 
 export default function Dashboard({ user, onLogout }: DashboardProps) {
-  const [view, setView] = useState<'calendar' | 'timeline'>('calendar');
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [isNewAssignmentModalOpen, setIsNewAssignmentModalOpen] = useState(false);
+  const [view, setView] = useState<'timeline' | 'calendar'>('timeline');
 
   const fetchAssignments = async () => {
     console.log('Fetching assignments for user:', {
@@ -98,16 +98,6 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
         <div className="flex justify-between items-center mb-6">
           <div className="flex space-x-4">
             <button
-              onClick={() => setView('calendar')}
-              className={`px-4 py-2 rounded-md ${
-                view === 'calendar'
-                  ? 'bg-indigo-600 text-white'
-                  : 'bg-white text-gray-700'
-              }`}
-            >
-              Calendrier
-            </button>
-            <button
               onClick={() => setView('timeline')}
               className={`px-4 py-2 rounded-md ${
                 view === 'timeline'
@@ -116,6 +106,16 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
               }`}
             >
               Timeline
+            </button>
+            <button
+              onClick={() => setView('calendar')}
+              className={`px-4 py-2 rounded-md ${
+                view === 'calendar'
+                  ? 'bg-indigo-600 text-white'
+                  : 'bg-white text-gray-700'
+              }`}
+            >
+              Calendrier
             </button>
           </div>
           
@@ -128,22 +128,22 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
           </button>
         </div>
 
-        {view === 'calendar' ? (
-          <Calendar assignments={assignments} />
-        ) : (
-          <Timeline
-            assignments={assignments}
-            onToggleComplete={handleToggleComplete}
-            currentUser={user}
-            onAssignmentDeleted={fetchAssignments}
-          />
-        )}
+        <div className="space-y-6">
+          {view === 'timeline' ? (
+            <Timeline
+              assignments={assignments}
+              onToggleComplete={handleToggleComplete}
+              currentUser={user}
+              onAssignmentDeleted={fetchAssignments}
+            />
+          ) : (
+            <Calendar assignments={assignments} />
+          )}
 
-        {user.role === 'admin' && (
-          <div className="mt-8">
+          {user.role === 'admin' && (
             <AdminPanel users={users} onUserDeleted={fetchUsers} />
-          </div>
-        )}
+          )}
+        </div>
 
         <NewAssignmentModal
           isOpen={isNewAssignmentModalOpen}

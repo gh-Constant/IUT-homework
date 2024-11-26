@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Assignment, User } from '../../types';
-import { format } from 'date-fns';
+import { format, isPast, formatDistanceToNow, differenceInDays } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { CheckCircle, Circle, Trash2 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
@@ -158,83 +158,150 @@ export default function Timeline({ assignments, onToggleComplete, currentUser, o
     return '';
   };
 
+  const getTimeLeftDisplay = (dueDate: string) => {
+    const due = new Date(dueDate);
+    const now = new Date();
+    const daysLeft = differenceInDays(due, now);
+    
+    if (isPast(due)) {
+      return {
+        text: 'En retard',
+        color: 'text-red-600 font-bold',
+        timeAgo: formatDistanceToNow(due, { addSuffix: true, locale: fr })
+      };
+    }
+
+    // Less than 24 hours
+    if (daysLeft < 1) {
+      return {
+        text: 'Urgent',
+        color: 'text-orange-600 font-bold',
+        timeAgo: formatDistanceToNow(due, { addSuffix: true, locale: fr })
+      };
+    }
+
+    // Less than 3 days
+    if (daysLeft < 3) {
+      return {
+        text: 'Bientôt',
+        color: 'text-yellow-600 font-bold',
+        timeAgo: formatDistanceToNow(due, { addSuffix: true, locale: fr })
+      };
+    }
+
+    // Less than a week
+    if (daysLeft < 7) {
+      return {
+        text: 'Cette semaine',
+        color: 'text-blue-600',
+        timeAgo: formatDistanceToNow(due, { addSuffix: true, locale: fr })
+      };
+    }
+
+    // More than a week
+    return {
+      text: 'À venir',
+      color: 'text-green-600',
+      timeAgo: formatDistanceToNow(due, { addSuffix: true, locale: fr })
+    };
+  };
+
   return (
     <div className="bg-white p-4 rounded-lg shadow">
       <h2 className="text-lg font-semibold mb-4">Timeline des devoirs</h2>
       <div className="space-y-4">
-        {sortedAssignments.map((assignment) => (
-          <div
-            key={assignment.id}
-            className={`p-4 rounded-lg border ${
-              assignment.completed ? 'border-success' : 'border-primary'
-            }`}
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="flex items-center gap-2">
-                  <h3 className="font-semibold">{assignment.title}</h3>
-                  <span className="text-xs px-2 py-1 bg-gray-100 rounded-full">
-                    {assignment.target_type === 'personal' ? (
-                      <span className="flex items-center gap-1">
-                        Personnel ({getTargetDisplay(assignment)})
-                      </span>
-                    ) : (
-                      <span>{assignment.target_type === 'global' ? 'Tout le monde' : getTargetDisplay(assignment)}</span>
-                    )}
-                  </span>
+        {sortedAssignments.map((assignment) => {
+          const timeLeft = getTimeLeftDisplay(assignment.due_date);
+          const isPastDue = isPast(new Date(assignment.due_date));
+
+          return (
+            <div
+              key={assignment.id}
+              className={`p-4 rounded-lg border transition-all ${
+                assignment.completed 
+                  ? 'border-success bg-green-50' 
+                  : isPastDue 
+                    ? 'border-red-300 bg-red-50/50' 
+                    : 'border-primary'
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-semibold">{assignment.title}</h3>
+                    <span className="text-xs px-2 py-1 bg-gray-100 rounded-full">
+                      {assignment.target_type === 'personal' ? (
+                        <span className="flex items-center gap-1">
+                          Personnel ({getTargetDisplay(assignment)})
+                        </span>
+                      ) : (
+                        <span>
+                          {assignment.target_type === 'global' ? 'Tout le monde' : getTargetDisplay(assignment)}
+                        </span>
+                      )}
+                    </span>
+                  </div>
+                  <p className="text-sm text-gray-500">{assignment.subject}</p>
+                  <p className="text-sm text-gray-500">
+                    Créateur : {usernames[assignment.created_by] || 'Inconnu'}
+                  </p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <p className="text-sm text-gray-500">
+                      {format(new Date(assignment.due_date), 'PPP', { locale: fr })}
+                    </p>
+                    <span className={`text-sm ${timeLeft.color}`}>
+                      • {timeLeft.text}
+                    </span>
+                    <span className="text-sm text-gray-500">
+                      ({timeLeft.timeAgo})
+                    </span>
+                  </div>
                 </div>
-                <p className="text-sm text-gray-500">{assignment.subject}</p>
-                <p className="text-sm text-gray-500">
-                  Créateur : {usernames[assignment.created_by] || 'Inconnu'}
-                </p>
-                <p className="text-sm text-gray-500">
-                  {format(new Date(assignment.due_date), 'PPP', { locale: fr })}
-                </p>
+                <div className="flex items-center gap-2">
+                  {(() => {
+                    const { canDelete, timeLeft } = canDeleteAssignment(assignment);
+                    if (canDelete) {
+                      return (
+                        <button
+                          onClick={() => handleDeleteAssignment(assignment)}
+                          className="p-1 rounded-full hover:bg-red-50"
+                          title="Supprimer le devoir"
+                        >
+                          <Trash2 className="h-5 w-5 text-red-500" />
+                        </button>
+                      );
+                    } else if (timeLeft !== undefined) {
+                      return (
+                        <button
+                          className="p-1 rounded-full cursor-not-allowed opacity-50"
+                          title={`Vous pourrez supprimer dans ${timeLeft} minute${timeLeft > 1 ? 's' : ''}`}
+                        >
+                          <Trash2 className="h-5 w-5 text-gray-400" />
+                        </button>
+                      );
+                    }
+                    return null;
+                  })()}
+                  <button
+                    onClick={() => onToggleComplete(assignment.id)}
+                    className={`p-1 rounded-full ${
+                      assignment.completed ? 'text-success' : 'text-gray-400'
+                    }`}
+                  >
+                    {assignment.completed ? (
+                      <CheckCircle className="h-6 w-6" />
+                    ) : (
+                      <Circle className="h-6 w-6" />
+                    )}
+                  </button>
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                {(() => {
-                  const { canDelete, timeLeft } = canDeleteAssignment(assignment);
-                  if (canDelete) {
-                    return (
-                      <button
-                        onClick={() => handleDeleteAssignment(assignment)}
-                        className="p-1 rounded-full hover:bg-red-50"
-                        title="Supprimer le devoir"
-                      >
-                        <Trash2 className="h-5 w-5 text-red-500" />
-                      </button>
-                    );
-                  } else if (timeLeft !== undefined) {
-                    return (
-                      <button
-                        className="p-1 rounded-full cursor-not-allowed opacity-50"
-                        title={`Vous pourrez supprimer dans ${timeLeft} minute${timeLeft > 1 ? 's' : ''}`}
-                      >
-                        <Trash2 className="h-5 w-5 text-gray-400" />
-                      </button>
-                    );
-                  }
-                  return null;
-                })()}
-                <button
-                  onClick={() => onToggleComplete(assignment.id)}
-                  className={`p-1 rounded-full ${
-                    assignment.completed ? 'text-success' : 'text-gray-400'
-                  }`}
-                >
-                  {assignment.completed ? (
-                    <CheckCircle className="h-6 w-6" />
-                  ) : (
-                    <Circle className="h-6 w-6" />
-                  )}
-                </button>
-              </div>
+              {assignment.description && (
+                <p className="mt-2 text-gray-600">{assignment.description}</p>
+              )}
             </div>
-            {assignment.description && (
-              <p className="mt-2 text-gray-600">{assignment.description}</p>
-            )}
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
