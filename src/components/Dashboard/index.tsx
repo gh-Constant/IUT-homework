@@ -124,6 +124,10 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
     }
   };
 
+  const handleAssignmentDeleted = () => {
+    fetchAssignments();
+  };
+
   return (
     <div className="min-h-screen bg-gray-100">
       <Header user={user} onLogout={onLogout} />
@@ -168,6 +172,8 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
           <Timeline
             assignments={assignments}
             onToggleComplete={handleToggleComplete}
+            currentUser={user}
+            onAssignmentDeleted={handleAssignmentDeleted}
           />
         )}
 

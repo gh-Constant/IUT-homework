@@ -1,15 +1,19 @@
 import React from 'react';
-import { Assignment } from '../../types';
+import { Assignment, User } from '../../types';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import { CheckCircle, Circle } from 'lucide-react';
+import { CheckCircle, Circle, Trash2 } from 'lucide-react';
+import { supabase } from '../../lib/supabase';
+import toast from 'react-hot-toast';
 
 interface TimelineProps {
   assignments: Assignment[];
   onToggleComplete: (id: string) => void;
+  currentUser: User;
+  onAssignmentDeleted: () => void;
 }
 
-export default function Timeline({ assignments, onToggleComplete }: TimelineProps) {
+export default function Timeline({ assignments, onToggleComplete, currentUser, onAssignmentDeleted }: TimelineProps) {
   const sortedAssignments = [...assignments].sort(
     (a, b) => new Date(a.due_date).getTime() - new Date(b.due_date).getTime()
   );
@@ -25,6 +29,27 @@ export default function Timeline({ assignments, onToggleComplete }: TimelineProp
       default:
         return '';
     }
+  };
+
+  const handleDeleteAssignment = async (assignment: Assignment) => {
+    try {
+      const { error } = await supabase
+        .from('assignments')
+        .delete()
+        .eq('id', assignment.id);
+
+      if (error) throw error;
+      
+      toast.success('Devoir supprimé avec succès');
+      onAssignmentDeleted();
+    } catch (error) {
+      toast.error('Erreur lors de la suppression du devoir');
+    }
+  };
+
+  const canDeleteAssignment = (assignment: Assignment) => {
+    return currentUser.role === 'admin' || 
+           (assignment.target_type === 'personal' && assignment.target_users?.includes(currentUser.id));
   };
 
   return (
@@ -51,18 +76,29 @@ export default function Timeline({ assignments, onToggleComplete }: TimelineProp
                   {format(new Date(assignment.due_date), 'PPP', { locale: fr })}
                 </p>
               </div>
-              <button
-                onClick={() => onToggleComplete(assignment.id)}
-                className={`p-1 rounded-full ${
-                  assignment.completed ? 'text-success' : 'text-gray-400'
-                }`}
-              >
-                {assignment.completed ? (
-                  <CheckCircle className="h-6 w-6" />
-                ) : (
-                  <Circle className="h-6 w-6" />
+              <div className="flex items-center gap-2">
+                {canDeleteAssignment(assignment) && (
+                  <button
+                    onClick={() => handleDeleteAssignment(assignment)}
+                    className="p-1 rounded-full text-danger hover:bg-red-50"
+                    title="Supprimer le devoir"
+                  >
+                    <Trash2 className="h-5 w-5" />
+                  </button>
                 )}
-              </button>
+                <button
+                  onClick={() => onToggleComplete(assignment.id)}
+                  className={`p-1 rounded-full ${
+                    assignment.completed ? 'text-success' : 'text-gray-400'
+                  }`}
+                >
+                  {assignment.completed ? (
+                    <CheckCircle className="h-6 w-6" />
+                  ) : (
+                    <Circle className="h-6 w-6" />
+                  )}
+                </button>
+              </div>
             </div>
             {assignment.description && (
               <p className="mt-2 text-gray-600">{assignment.description}</p>
