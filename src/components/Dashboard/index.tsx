@@ -16,19 +16,18 @@ interface DashboardProps {
 export default function Dashboard({ user, onLogout }: DashboardProps) {
   const [view, setView] = useState<'calendar' | 'timeline'>('calendar');
   const [assignments, setAssignments] = useState<Assignment[]>([]);
-  const [isNewAssignmentModalOpen, setIsNewAssignmentModalOpen] = useState(false);
   const [users, setUsers] = useState<User[]>([]);
-
-  console.log('Dashboard user:', user);
+  const [isNewAssignmentModalOpen, setIsNewAssignmentModalOpen] = useState(false);
 
   const fetchAssignments = async () => {
     console.log('Fetching assignments for user:', {
       id: user.id,
-      category: user.category
+      category: user.category,
+      role: user.role
     });
 
     try {
-      // Get all assignments and log the raw data
+      // Get all assignments
       const { data: allData, error } = await supabase
         .from('assignments')
         .select('*');
@@ -36,60 +35,25 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
       if (error) throw error;
 
       // Log raw data before filtering
-      console.log('Raw data from database:', allData.map(a => ({
-        id: a.id,
-        title: a.title,
-        type: a.target_type,
-        groups: a.target_groups,
-        users: a.target_users
-      })));
+      console.log('Raw data from database:', allData);
 
-      // Filter assignments based on type and targets
-      const assignments = allData.filter(assignment => {
-        // Log each assignment being checked
-        console.log('Checking assignment:', {
-          id: assignment.id,
-          title: assignment.title,
-          type: assignment.target_type,
-          groups: assignment.target_groups,
-          users: assignment.target_users,
-          matchesGroup: assignment.target_type === 'group' ? assignment.target_groups.includes(user.category) : 'N/A',
-          matchesPersonal: assignment.target_type === 'personal' ? assignment.target_users.includes(user.id) : 'N/A'
-        });
+      // Filter assignments based on user role and targets
+      const assignments = user.role === 'admin' 
+        ? allData // Admin sees all assignments
+        : allData.filter(assignment => {
+            // Regular users only see assignments targeted to them
+            if (assignment.target_type === 'global') return true;
+            if (assignment.target_type === 'group') {
+              return assignment.target_groups.includes(user.category);
+            }
+            if (assignment.target_type === 'personal') {
+              return assignment.target_users.includes(user.id);
+            }
+            return false;
+          });
 
-        // Global assignments are always included
-        if (assignment.target_type === 'global') return true;
-
-        // Group assignments - check if user's category is in target_groups
-        if (assignment.target_type === 'group') {
-          const isIncluded = assignment.target_groups.includes(user.category);
-          console.log(`Group assignment check: ${assignment.title} - Category ${user.category} included: ${isIncluded}`);
-          return isIncluded;
-        }
-
-        // Personal assignments - check if user's ID is in target_users
-        if (assignment.target_type === 'personal') {
-          const isIncluded = assignment.target_users.includes(user.id);
-          console.log(`Personal assignment check: ${assignment.title} - User ${user.id} included: ${isIncluded}`);
-          return isIncluded;
-        }
-
-        return false;
-      });
-
-      console.log('Assignment filtering results:', {
-        total: allData.length,
-        filtered: assignments.length,
-        breakdown: {
-          global: assignments.filter(a => a.target_type === 'global').length,
-          group: assignments.filter(a => a.target_type === 'group').length,
-          personal: assignments.filter(a => a.target_type === 'personal').length
-        },
-        allAssignments: assignments
-      });
-
+      console.log('Filtered assignments:', assignments);
       setAssignments(assignments);
-
     } catch (error) {
       console.error('Error fetching assignments:', error);
     }
@@ -124,10 +88,6 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
     if (!error) {
       fetchAssignments();
     }
-  };
-
-  const handleAssignmentDeleted = () => {
-    fetchAssignments();
   };
 
   return (
@@ -175,7 +135,7 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
             assignments={assignments}
             onToggleComplete={handleToggleComplete}
             currentUser={user}
-            onAssignmentDeleted={handleAssignmentDeleted}
+            onAssignmentDeleted={fetchAssignments}
           />
         )}
 
