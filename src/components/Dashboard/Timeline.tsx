@@ -14,6 +14,19 @@ export default function Timeline({ assignments, onToggleComplete }: TimelineProp
     (a, b) => new Date(a.due_date).getTime() - new Date(b.due_date).getTime()
   );
 
+  const getAssignmentTypeLabel = (assignment: Assignment) => {
+    switch (assignment.target_type) {
+      case 'global':
+        return 'GLOBAL';
+      case 'group':
+        return `GROUP (${assignment.target_groups?.join(', ')})`;
+      case 'personal':
+        return 'PERSONAL';
+      default:
+        return '';
+    }
+  };
+
   return (
     <div className="bg-white p-4 rounded-lg shadow">
       <h2 className="text-lg font-semibold mb-4">Timeline des devoirs</h2>
@@ -27,7 +40,12 @@ export default function Timeline({ assignments, onToggleComplete }: TimelineProp
           >
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="font-semibold">{assignment.title}</h3>
+                <div className="flex items-center gap-2">
+                  <h3 className="font-semibold">{assignment.title}</h3>
+                  <span className="text-xs px-2 py-1 bg-gray-100 rounded-full">
+                    {getAssignmentTypeLabel(assignment)}
+                  </span>
+                </div>
                 <p className="text-sm text-gray-500">{assignment.subject}</p>
                 <p className="text-sm text-gray-500">
                   {format(new Date(assignment.due_date), 'PPP', { locale: fr })}

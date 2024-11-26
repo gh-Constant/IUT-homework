@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Dialog } from '@headlessui/react';
 import { X } from 'lucide-react';
 import { Subject, Category, TargetType, User } from '../../types';
@@ -25,6 +25,7 @@ export default function NewAssignmentModal({
   const [targetType, setTargetType] = useState<TargetType>('global');
   const [targetGroups, setTargetGroups] = useState<Category[]>([]);
   const [targetUsers, setTargetUsers] = useState<string[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
 
   const subjects: Subject[] = [
     'Communication',
@@ -34,6 +35,20 @@ export default function NewAssignmentModal({
     'Management',
     'Marketing',
   ];
+
+  useEffect(() => {
+    const fetchUsers = async () => {
+      const { data, error } = await supabase
+        .from('users')
+        .select('id, username');
+      
+      if (!error && data) {
+        setUsers(data);
+      }
+    };
+
+    fetchUsers();
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -128,6 +143,69 @@ export default function NewAssignmentModal({
                 onChange={(e) => setDueDate(e.target.value)}
               />
             </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
+                Type de cible
+              </label>
+              <select
+                required
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                value={targetType}
+                onChange={(e) => setTargetType(e.target.value as TargetType)}
+              >
+                <option value="global">Tout le monde</option>
+                <option value="personal">Personnel</option>
+                <option value="group">Groupes spécifiques</option>
+              </select>
+            </div>
+
+            {targetType === 'group' && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  Groupes cibles
+                </label>
+                <select
+                  multiple
+                  required
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                  value={targetGroups}
+                  onChange={(e) => {
+                    const selected = Array.from(e.target.selectedOptions, option => option.value as Category);
+                    setTargetGroups(selected);
+                  }}
+                >
+                  <option value="C2">C2</option>
+                  <option value="C1">C1</option>
+                  <option value="B2">B2</option>
+                  <option value="B1">B1</option>
+                  <option value="A2">A2</option>
+                  <option value="A1">A1</option>
+                </select>
+              </div>
+            )}
+
+            {targetType === 'personal' && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  Utilisateurs cibles
+                </label>
+                <select
+                  multiple
+                  required
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                  value={targetUsers}
+                  onChange={(e) => {
+                    const selected = Array.from(e.target.selectedOptions, option => option.value);
+                    setTargetUsers(selected);
+                  }}
+                >
+                  {users.map(user => (
+                    <option key={user.id} value={user.id}>{user.username}</option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             <button
               type="submit"
