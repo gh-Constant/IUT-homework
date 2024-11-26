@@ -16,8 +16,10 @@ interface DashboardProps {
 export default function Dashboard({ user, onLogout }: DashboardProps) {
   const [view, setView] = useState<'calendar' | 'timeline'>('calendar');
   const [assignments, setAssignments] = useState<Assignment[]>([]);
-  const [users, setUsers] = useState<User[]>([]);
   const [isNewAssignmentModalOpen, setIsNewAssignmentModalOpen] = useState(false);
+  const [users, setUsers] = useState<User[]>([]);
+
+  console.log('Dashboard user:', user);
 
   const fetchAssignments = async () => {
     console.log('Fetching assignments for user:', {
