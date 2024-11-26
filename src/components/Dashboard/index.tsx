@@ -141,7 +141,11 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
           )}
 
           {user.role === 'admin' && (
-            <AdminPanel users={users} onUserDeleted={fetchUsers} />
+            <AdminPanel 
+              users={users} 
+              onUserDeleted={fetchUsers} 
+              currentUser={user}
+            />
           )}
         </div>
 
