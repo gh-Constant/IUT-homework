@@ -2,10 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { Assignment, User } from '../../types';
 import { format, isPast, formatDistanceToNow, differenceInDays } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import { CheckCircle, Circle, Trash2 } from 'lucide-react';
+import { CheckCircle, Circle, Trash2, Edit } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import toast from 'react-hot-toast';
 import DOMPurify from 'dompurify';
+import EditAssignmentModal from './EditAssignmentModal';
 
 interface TimelineProps {
   assignments: Assignment[];
@@ -14,8 +15,16 @@ interface TimelineProps {
   onAssignmentDeleted: () => void;
 }
 
+const extractLinks = (html: string): string[] => {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(html, 'text/html');
+  const links = Array.from(doc.getElementsByTagName('a'));
+  return links.map(link => link.href);
+};
+
 export default function Timeline({ assignments, onToggleComplete, currentUser, onAssignmentDeleted }: TimelineProps) {
   const [usernames, setUsernames] = useState<Record<string, string>>({});
+  const [editingAssignment, setEditingAssignment] = useState<Assignment | null>(null);
 
   useEffect(() => {
     const fetchUsernames = async () => {
@@ -196,6 +205,18 @@ export default function Timeline({ assignments, onToggleComplete, currentUser, o
     };
   };
 
+  const canEditAssignment = (assignment: Assignment): boolean => {
+    if (!currentUser) return false;
+    if (currentUser.role === 'admin') return true;
+    
+    const isCreator = assignment.created_by === currentUser.id;
+    const isPersonalTarget = assignment.target_type === 'personal' && 
+      Array.isArray(assignment.target_users) && 
+      assignment.target_users.includes(currentUser.id);
+    
+    return isCreator || isPersonalTarget;
+  };
+
   return (
     <div className="bg-white p-4 rounded-lg shadow">
       <h2 className="text-lg font-semibold mb-4">Timeline des devoirs</h2>
@@ -284,20 +305,77 @@ export default function Timeline({ assignments, onToggleComplete, currentUser, o
                       <Circle className="h-6 w-6" />
                     )}
                   </button>
+                  {(() => {
+                    const canEdit = canEditAssignment(assignment);
+                    return (
+                      <button
+                        onClick={() => canEdit && setEditingAssignment(assignment)}
+                        className={`p-1 rounded-full ${
+                          canEdit 
+                            ? 'hover:bg-blue-50 text-blue-500' 
+                            : 'cursor-not-allowed opacity-50'
+                        }`}
+                        title={canEdit ? "Modifier le devoir" : "Vous n'êtes pas autorisé à modifier ce devoir"}
+                        disabled={!canEdit}
+                      >
+                        <Edit className="h-5 w-5" />
+                      </button>
+                    );
+                  })()}
                 </div>
               </div>
               {assignment.description && (
-                <div 
-                  className="mt-2 text-gray-600"
-                  dangerouslySetInnerHTML={{ 
-                    __html: DOMPurify.sanitize(assignment.description)
-                  }}
-                />
+                <>
+                  <div 
+                    className="mt-2 text-gray-600 prose max-w-none prose-a:text-gray-300 prose-a:blur-[2px] hover:prose-a:blur-none prose-a:opacity-50 hover:prose-a:opacity-100 prose-a:transition-all prose-a:duration-200 prose-a:no-underline hover:prose-a:underline prose-strong:font-bold prose-em:italic"
+                    dangerouslySetInnerHTML={{ 
+                      __html: DOMPurify.sanitize(assignment.description, {
+                        ALLOWED_TAGS: ['p', 'a', 'strong', 'em', 'ul', 'ol', 'li', 'br'],
+                        ALLOWED_ATTR: ['href', 'target']
+                      })
+                    }}
+                  />
+                  {extractLinks(assignment.description).length > 0 && (
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {extractLinks(assignment.description).map((url, index) => {
+                        const domain = new URL(url).hostname;
+                        return (
+                          <a 
+                            key={index}
+                            href={url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors border border-gray-200"
+                          >
+                            <img 
+                              src={`https://www.google.com/s2/favicons?domain=${domain}&sz=32`}
+                              alt=""
+                              className="w-4 h-4"
+                            />
+                            <span className="text-sm text-gray-600">{domain}</span>
+                          </a>
+                        );
+                      })}
+                    </div>
+                  )}
+                </>
               )}
             </div>
           );
         })}
       </div>
+      {editingAssignment && (
+        <EditAssignmentModal
+          isOpen={true}
+          onClose={() => setEditingAssignment(null)}
+          currentUser={currentUser}
+          assignment={editingAssignment}
+          onAssignmentUpdated={() => {
+            setEditingAssignment(null);
+            onAssignmentDeleted(); // reuse this prop to refresh the list
+          }}
+        />
+      )}
     </div>
   );
 }
