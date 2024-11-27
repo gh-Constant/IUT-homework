@@ -33,25 +33,21 @@
           .eq('id', user.id)
           .single();
 
-        if (verifyError) {
-          console.error('Error verifying user:', verifyError);
-          throw new Error(`Erreur lors de la vérification de l'utilisateur: ${verifyError.message}`);
-        }
-
-        if (!existingUser) {
-          throw new Error('Utilisateur introuvable dans la base de données');
+        if (verifyError || !existingUser) {
+          console.error('User not found:', verifyError);
+          throw new Error('Utilisateur introuvable');
         }
 
         // Call the delete_user_data function
         console.log('Step 2: Calling delete_user_data function');
-        const { data: deleteData, error: deleteError } = await supabase
+        const { error: deleteError } = await supabase
           .rpc('delete_user_data', {
             user_id: user.id
           });
 
         if (deleteError) {
           console.error('Error in delete_user_data:', deleteError);
-          throw new Error(`Erreur lors de la suppression des données: ${deleteError.message}`);
+          throw new Error('Erreur lors de la suppression des données');
         }
 
         // Verify deletion
@@ -67,22 +63,21 @@
           toast.success(`L'utilisateur ${user.username} et tous ses devoirs ont été supprimés`);
           onUserDeleted();
         } else {
-          console.error('User still exists after deletion attempt:', checkData);
-          throw new Error('La suppression a échoué - l\'utilisateur existe toujours dans la base de données');
+          console.error('User still exists after deletion attempt');
+          throw new Error('La suppression a échoué, veuillez réessayer');
         }
 
         console.log('=== DELETE USER OPERATION COMPLETE ===');
       } catch (error) {
-        console.error('=== DELETE USER ERROR ===');
-        console.error('Error details:', error);
-        
-        let errorMessage = 'Une erreur est survenue lors de la suppression';
+        console.error('=== UNEXPECTED ERROR ===');
+        console.error('Caught in try/catch:', error);
         if (error instanceof Error) {
-          errorMessage = error.message;
-          console.error('Stack trace:', error.stack);
+          console.error('Error details:', {
+            message: error.message,
+            stack: error.stack
+          });
         }
-        
-        toast.error(errorMessage);
+        toast.error(error instanceof Error ? error.message : 'Une erreur est survenue lors de la suppression');
       }
     };
 

@@ -4,6 +4,8 @@ import { X } from 'lucide-react';
 import { Subject, Category, TargetType, User } from '../../types';
 import { supabase } from '../../lib/supabase';
 import toast from 'react-hot-toast';
+import ReactQuill from 'react-quill';
+import 'react-quill/dist/quill.snow.css';
 
 interface NewAssignmentModalProps {
   isOpen: boolean;
@@ -111,13 +113,27 @@ export default function NewAssignmentModal({
               <label className="block text-sm font-medium text-gray-700">
                 Description
               </label>
-              <textarea
-                placeholder="Décrivez le devoir en détail"
-                className="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors min-h-[100px]"
-                rows={3}
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-              />
+              <div className="border border-gray-300 rounded-lg">
+                <ReactQuill
+                  value={description}
+                  onChange={setDescription}
+                  className="bg-white"
+                  theme="snow"
+                  modules={{
+                    toolbar: [
+                      ['bold', 'italic', 'underline', 'strike'],
+                      ['link'],
+                      [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+                      ['clean']
+                    ],
+                  }}
+                  formats={[
+                    'bold', 'italic', 'underline', 'strike',
+                    'link', 'list', 'bullet'
+                  ]}
+                  placeholder="Décrivez le devoir en détail"
+                />
+              </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
