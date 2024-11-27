@@ -1,5 +1,5 @@
 import React from 'react';
-import { BookOpen, LogOut } from 'lucide-react';
+import { BookOpen, LogOut, Github } from 'lucide-react';
 import { User } from '../../types';
 import Cookies from 'js-cookie';
 
@@ -25,13 +25,28 @@ export default function Header({ user, onLogout }: HeaderProps) {
               <p className="text-sm text-gray-500">Groupe {user.category}</p>
             </div>
           </div>
-          <button
-            onClick={handleLogout}
-            className="flex items-center text-gray-600 hover:text-gray-900"
-          >
-            <LogOut className="h-5 w-5 mr-2" />
-            Déconnexion
-          </button>
+          <div className="flex items-center space-x-4">
+            <a
+              href="https://github.com/gh-Constant/IUT-homework"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center px-4 py-2 rounded-md bg-gray-900 text-white hover:bg-gray-700 transition-colors"
+            >
+              <div className="relative mr-2">
+                <div className="absolute inset-0 bg-black rounded-full"></div>
+                <Github className="h-5 w-5 relative z-10" />
+              </div>
+              Contribute
+            </a>
+            
+            <button
+              onClick={handleLogout}
+              className="flex items-center text-gray-600 hover:text-gray-900"
+            >
+              <LogOut className="h-5 w-5 mr-2" />
+              Déconnexion
+            </button>
+          </div>
         </div>
       </div>
     </header>

@@ -7,6 +7,7 @@ import Calendar from './Calendar';
 import Timeline from './Timeline';
 import AdminPanel from './AdminPanel';
 import NewAssignmentModal from './NewAssignmentModal';
+import ContributePopup from '../ContributePopup';
 
 interface DashboardProps {
   user: User;
@@ -17,6 +18,9 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [isNewAssignmentModalOpen, setIsNewAssignmentModalOpen] = useState(false);
+  const [isContributePopupOpen, setIsContributePopupOpen] = useState(
+    !localStorage.getItem('hideContributePopup')
+  );
   const [view, setView] = useState<'timeline' | 'calendar'>('timeline');
 
   const fetchAssignments = async () => {
@@ -154,6 +158,11 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
           onClose={() => setIsNewAssignmentModalOpen(false)}
           currentUser={user}
           onAssignmentCreated={fetchAssignments}
+        />
+
+        <ContributePopup 
+          isOpen={isContributePopupOpen}
+          onClose={() => setIsContributePopupOpen(false)}
         />
       </main>
     </div>
