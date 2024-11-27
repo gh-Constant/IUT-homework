@@ -7,6 +7,7 @@ import { supabase } from '../../lib/supabase';
 import toast from 'react-hot-toast';
 import DOMPurify from 'dompurify';
 import EditAssignmentModal from './EditAssignmentModal';
+import Cookies from 'js-cookie';
 
 interface TimelineProps {
   assignments: Assignment[];
@@ -25,6 +26,13 @@ const extractLinks = (html: string): string[] => {
 export default function Timeline({ assignments, onToggleComplete, currentUser, onAssignmentDeleted }: TimelineProps) {
   const [usernames, setUsernames] = useState<Record<string, string>>({});
   const [editingAssignment, setEditingAssignment] = useState<Assignment | null>(null);
+  const [completions, setCompletions] = useState<Record<string, boolean>>(() => {
+    if (!currentUser) return {};
+    // Load initial state from user-specific cookie
+    const cookieKey = `assignment_completions_${currentUser.id}`;
+    const savedCompletions = Cookies.get(cookieKey);
+    return savedCompletions ? JSON.parse(savedCompletions) : {};
+  });
 
   useEffect(() => {
     const fetchUsernames = async () => {
@@ -217,6 +225,61 @@ export default function Timeline({ assignments, onToggleComplete, currentUser, o
     return isCreator || isPersonalTarget;
   };
 
+  const handleToggleComplete = async (assignmentId: string) => {
+    if (!currentUser) {
+      toast.error('Vous devez être connecté pour marquer un devoir comme terminé');
+      return;
+    }
+
+    try {
+      const cookieKey = `assignment_completions_${currentUser.id}`;
+      const isCompleted = completions[assignmentId];
+      
+      // Update local state
+      const newCompletions = { ...completions };
+      if (isCompleted) {
+        delete newCompletions[assignmentId];
+      } else {
+        newCompletions[assignmentId] = true;
+      }
+      
+      // Save to user-specific cookie
+      Cookies.set(cookieKey, JSON.stringify(newCompletions), {
+        expires: 365, // Cookie expires in 1 year
+        secure: true,
+        sameSite: 'strict'
+      });
+      
+      // Update state
+      setCompletions(newCompletions);
+      
+      // Show success message
+      toast.success(isCompleted ? 'Devoir marqué comme non terminé' : 'Devoir marqué comme terminé');
+
+    } catch (error) {
+      console.error('Error toggling completion:', error);
+      toast.error('Une erreur est survenue lors de la modification');
+    }
+  };
+
+  // Update effect to use user-specific cookie
+  useEffect(() => {
+    if (!currentUser) return;
+    
+    const cookieKey = `assignment_completions_${currentUser.id}`;
+    const savedCompletions = Cookies.get(cookieKey);
+    
+    if (savedCompletions) {
+      try {
+        setCompletions(JSON.parse(savedCompletions));
+      } catch (error) {
+        console.error('Error parsing saved completions:', error);
+        // If parsing fails, reset the cookie
+        Cookies.remove(cookieKey);
+      }
+    }
+  }, [currentUser]); // Re-run when user changes
+
   return (
     <div className="bg-white p-4 rounded-lg shadow">
       <h2 className="text-lg font-semibold mb-4">Timeline des devoirs</h2>
@@ -229,7 +292,7 @@ export default function Timeline({ assignments, onToggleComplete, currentUser, o
             <div
               key={assignment.id}
               className={`p-4 rounded-lg border transition-all ${
-                assignment.completed 
+                completions[assignment.id] 
                   ? 'border-success bg-green-50' 
                   : isPastDue 
                     ? 'border-gray-300 bg-gray-100/50 opacity-60' 
@@ -294,12 +357,12 @@ export default function Timeline({ assignments, onToggleComplete, currentUser, o
                     }
                   })()}
                   <button
-                    onClick={() => onToggleComplete(assignment.id)}
+                    onClick={() => handleToggleComplete(assignment.id)}
                     className={`p-1 rounded-full ${
-                      assignment.completed ? 'text-success' : 'text-gray-400'
+                      completions[assignment.id] ? 'text-success' : 'text-gray-400'
                     }`}
                   >
-                    {assignment.completed ? (
+                    {completions[assignment.id] ? (
                       <CheckCircle className="h-6 w-6" />
                     ) : (
                       <Circle className="h-6 w-6" />
