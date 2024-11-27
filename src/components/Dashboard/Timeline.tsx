@@ -47,64 +47,40 @@ export default function Timeline({ assignments, onToggleComplete, currentUser, o
     (a, b) => new Date(a.due_date).getTime() - new Date(b.due_date).getTime()
   );
 
-  const canDeleteAssignment = (assignment: Assignment): { canDelete: boolean; timeLeft?: number } => {
+  const canDeleteAssignment = (assignment: Assignment): { canDelete: boolean } => {
     if (!currentUser) return { canDelete: false };
     
-    // Admins can delete any assignment
+    // Admins can always delete
     if (currentUser.role === 'admin') return { canDelete: true };
     
-    // Check if user is the owner of the assignment
-    const isOwner = assignment.created_by === currentUser.id;
-    
-    // For personal assignments, check if the current user is a target
+    // For personal assignments, check if current user is in target_users
     const isPersonalTarget = assignment.target_type === 'personal' && 
-      assignment.target_users?.includes(currentUser.id);
+      Array.isArray(assignment.target_users) && 
+      assignment.target_users.includes(currentUser.id);
     
-    // Only allow deletion if:
-    // 1. User is the owner, OR
-    // 2. Assignment is personal type AND user is a target
-    // Note: Global and group assignments can only be deleted by owner or admin
-    if (!isOwner && !isPersonalTarget) return { canDelete: false };
+    // Check if user is the creator
+    const isCreator = assignment.created_by === currentUser.id;
     
-    // For non-admins, check if assignment is older than 10 minutes
-    const creationTime = new Date(assignment.created_at).getTime();
-    const currentTime = new Date().getTime();
-    const tenMinutesInMs = 10 * 60 * 1000;
-    const timeDiff = currentTime - creationTime;
-    
-    if (timeDiff > tenMinutesInMs) {
-      return { canDelete: true };
-    }
-    
-    // Calculate time left in minutes
-    const timeLeft = Math.ceil((tenMinutesInMs - timeDiff) / 60000);
-    return { canDelete: false, timeLeft };
+    // Allow deletion if:
+    // 1. It's a personal message they're targeted in, OR
+    // 2. They created it (for any type of assignment)
+    return { canDelete: isCreator || isPersonalTarget };
   };
 
   const handleDeleteAssignment = async (assignment: Assignment) => {
     try {
         console.log('=== DELETE OPERATION START ===');
-        console.log('Step 1: Delete attempt initiated');
         
-        // Check for 10-minute delay for non-admins
-        if (currentUser?.role !== 'admin') {
-            const creationTime = new Date(assignment.created_at).getTime();
-            const currentTime = new Date().getTime();
-            const timeDiff = currentTime - creationTime;
-            const timeLeft = Math.ceil((600000 - timeDiff) / 60000); // Convert to minutes
+        // Check if user has permission to delete
+        const canDelete = currentUser?.role === 'admin' || 
+                         assignment.created_by === currentUser?.id ||
+                         (assignment.target_type === 'personal' && 
+                          assignment.target_users?.includes(currentUser?.id || ''));
 
-            if (timeDiff < 600000) { // 10 minutes in milliseconds
-                toast.error(`Vous devez attendre encore ${timeLeft} minute(s) avant de pouvoir supprimer ce devoir`);
-                return;
-            }
+        if (!canDelete) {
+            toast.error("Vous n'avez pas la permission de supprimer ce devoir");
+            return;
         }
-
-        console.log('Assignment details:', {
-            id: assignment.id,
-            title: assignment.title,
-            created_at: assignment.created_at,
-            timeSinceCreation: Math.floor((new Date().getTime() - new Date(assignment.created_at).getTime()) / 60000) + ' minutes'
-        });
 
         // First verify the assignment exists
         const { data: existingAssignment, error: verifyError } = await supabase
@@ -273,7 +249,7 @@ export default function Timeline({ assignments, onToggleComplete, currentUser, o
                 </div>
                 <div className="flex items-center gap-2">
                   {(() => {
-                    const { canDelete, timeLeft } = canDeleteAssignment(assignment);
+                    const { canDelete } = canDeleteAssignment(assignment);
                     if (canDelete) {
                       return (
                         <button
@@ -285,16 +261,10 @@ export default function Timeline({ assignments, onToggleComplete, currentUser, o
                         </button>
                       );
                     } else {
-                      const tooltipText = timeLeft !== undefined
-                        ? `Vous pourrez supprimer dans ${timeLeft} minute${timeLeft > 1 ? 's' : ''}`
-                        : assignment.target_type === 'personal'
-                          ? "Vous n'êtes pas concerné par ce devoir"
-                          : "Seul l'administrateur ou le créateur peut supprimer ce devoir";
-
                       return (
                         <button
                           className="p-1 rounded-full cursor-not-allowed opacity-50"
-                          title={tooltipText}
+                          title="Vous n'êtes pas autorisé à supprimer ce devoir"
                           disabled
                         >
                           <Trash2 className="h-5 w-5 text-gray-400" />
