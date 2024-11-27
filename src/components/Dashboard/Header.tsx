@@ -24,12 +24,12 @@ export default function Header({ user, onLogout }: HeaderProps) {
       icon: <img src={`https://www.google.com/s2/favicons?domain=moodle.univ-fcomte.fr`} alt="Moodle" className="h-5 w-5" />,
     },
     {
-      name: 'Messagerie',
-      href: 'https://ent.univ-tlse3.fr/messagerie',
-      icon: <img src={`https://www.google.com/s2/favicons?domain=ent.univ-tlse3.fr`} alt="Messagerie" className="h-5 w-5" />,
+      name: 'Emploi du temps',
+      href: 'https://sedna.univ-fcomte.fr/direct/myplanning.jsp?top=top.self',
+      icon: <img src={`https://www.google.com/s2/favicons?domain=sedna.univ-fcomte.fr`} alt="Emploi du temps" className="h-5 w-5" />,
     },
     {
-      name: 'Emploi du temps',
+      name: 'Messagerie',
       href: 'https://mail-edu.univ-fcomte.fr/modern/',
       icon: <img src={`https://www.google.com/s2/favicons?domain=mail-edu.univ-fcomte.fr`} alt="Emploi du temps" className="h-5 w-5" />,
     },
