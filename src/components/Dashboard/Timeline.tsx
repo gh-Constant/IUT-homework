@@ -50,8 +50,21 @@ export default function Timeline({ assignments, onToggleComplete, currentUser, o
   const canDeleteAssignment = (assignment: Assignment): { canDelete: boolean; timeLeft?: number } => {
     if (!currentUser) return { canDelete: false };
     
-    // Admins can delete anytime
+    // Admins can delete any assignment
     if (currentUser.role === 'admin') return { canDelete: true };
+    
+    // Check if user is the owner of the assignment
+    const isOwner = assignment.created_by === currentUser.id;
+    
+    // For personal assignments, check if the current user is a target
+    const isPersonalTarget = assignment.target_type === 'personal' && 
+      assignment.target_users?.includes(currentUser.id);
+    
+    // Only allow deletion if:
+    // 1. User is the owner, OR
+    // 2. Assignment is personal type AND user is a target
+    // Note: Global and group assignments can only be deleted by owner or admin
+    if (!isOwner && !isPersonalTarget) return { canDelete: false };
     
     // For non-admins, check if assignment is older than 10 minutes
     const creationTime = new Date(assignment.created_at).getTime();
@@ -271,17 +284,23 @@ export default function Timeline({ assignments, onToggleComplete, currentUser, o
                           <Trash2 className="h-5 w-5 text-red-500" />
                         </button>
                       );
-                    } else if (timeLeft !== undefined) {
+                    } else {
+                      const tooltipText = timeLeft !== undefined
+                        ? `Vous pourrez supprimer dans ${timeLeft} minute${timeLeft > 1 ? 's' : ''}`
+                        : assignment.target_type === 'personal'
+                          ? "Vous n'êtes pas concerné par ce devoir"
+                          : "Seul l'administrateur ou le créateur peut supprimer ce devoir";
+
                       return (
                         <button
                           className="p-1 rounded-full cursor-not-allowed opacity-50"
-                          title={`Vous pourrez supprimer dans ${timeLeft} minute${timeLeft > 1 ? 's' : ''}`}
+                          title={tooltipText}
+                          disabled
                         >
                           <Trash2 className="h-5 w-5 text-gray-400" />
                         </button>
                       );
                     }
-                    return null;
                   })()}
                   <button
                     onClick={() => onToggleComplete(assignment.id)}
