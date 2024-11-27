@@ -232,7 +232,7 @@ export default function Timeline({ assignments, onToggleComplete, currentUser, o
                 assignment.completed 
                   ? 'border-success bg-green-50' 
                   : isPastDue 
-                    ? 'border-red-300 bg-red-50/50' 
+                    ? 'border-gray-300 bg-gray-100/50 opacity-60' 
                     : 'border-primary'
               }`}
             >
@@ -324,41 +324,39 @@ export default function Timeline({ assignments, onToggleComplete, currentUser, o
                   })()}
                 </div>
               </div>
-              {assignment.description && (
-                <>
-                  <div 
-                    className="mt-2 text-gray-600 prose max-w-none prose-a:text-gray-300 prose-a:blur-[2px] hover:prose-a:blur-none prose-a:opacity-50 hover:prose-a:opacity-100 prose-a:transition-all prose-a:duration-200 prose-a:no-underline hover:prose-a:underline prose-strong:font-bold prose-em:italic"
-                    dangerouslySetInnerHTML={{ 
-                      __html: DOMPurify.sanitize(assignment.description, {
-                        ALLOWED_TAGS: ['p', 'a', 'strong', 'em', 'ul', 'ol', 'li', 'br'],
-                        ALLOWED_ATTR: ['href', 'target']
-                      })
-                    }}
-                  />
-                  {extractLinks(assignment.description).length > 0 && (
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      {extractLinks(assignment.description).map((url, index) => {
-                        const domain = new URL(url).hostname;
-                        return (
-                          <a 
-                            key={index}
-                            href={url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors border border-gray-200"
-                          >
-                            <img 
-                              src={`https://www.google.com/s2/favicons?domain=${domain}&sz=32`}
-                              alt=""
-                              className="w-4 h-4"
-                            />
-                            <span className="text-sm text-gray-600">{domain}</span>
-                          </a>
-                        );
-                      })}
-                    </div>
-                  )}
-                </>
+              {assignment.description && assignment.description.trim() !== '' && (
+                <div 
+                  className="mt-2 text-gray-600 prose max-w-none prose-strong:font-bold prose-em:italic"
+                  dangerouslySetInnerHTML={{ 
+                    __html: DOMPurify.sanitize(assignment.description, {
+                      ALLOWED_TAGS: ['p', 'strong', 'em', 'ul', 'ol', 'li', 'br'],
+                      ALLOWED_ATTR: []
+                    })
+                  }}
+                />
+              )}
+              {assignment.links && assignment.links.length > 0 && (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {assignment.links.map((link, index) => {
+                    const domain = new URL(link.url).hostname;
+                    return (
+                      <a 
+                        key={index}
+                        href={link.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors border border-gray-200"
+                      >
+                        <img 
+                          src={`https://www.google.com/s2/favicons?domain=${domain}&sz=32`}
+                          alt=""
+                          className="w-4 h-4"
+                        />
+                        <span className="text-sm text-gray-600">{link.title}</span>
+                      </a>
+                    );
+                  })}
+                </div>
               )}
             </div>
           );
