@@ -1,7 +1,8 @@
 import React from 'react';
-import { BookOpen, LogOut, Github } from 'lucide-react';
+import { BookOpen, LogOut, Github, Calendar, Mail, GraduationCap, Book, Menu } from 'lucide-react';
 import { User } from '../../types';
 import Cookies from 'js-cookie';
+import { useState } from 'react';
 
 interface HeaderProps {
   user: User;
@@ -9,10 +10,35 @@ interface HeaderProps {
 }
 
 export default function Header({ user, onLogout }: HeaderProps) {
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+
   const handleLogout = () => {
     Cookies.remove('user');
     onLogout();
   };
+
+  const links = [
+    {
+      name: 'Moodle',
+      href: 'https://moodle.univ-fcomte.fr/course/index.php?categoryid=3823',
+      icon: <img src={`https://www.google.com/s2/favicons?domain=moodle.univ-fcomte.fr`} alt="Moodle" className="h-5 w-5" />,
+    },
+    {
+      name: 'Messagerie',
+      href: 'https://ent.univ-tlse3.fr/messagerie',
+      icon: <img src={`https://www.google.com/s2/favicons?domain=ent.univ-tlse3.fr`} alt="Messagerie" className="h-5 w-5" />,
+    },
+    {
+      name: 'Emploi du temps',
+      href: 'https://mail-edu.univ-fcomte.fr/modern/',
+      icon: <img src={`https://www.google.com/s2/favicons?domain=mail-edu.univ-fcomte.fr`} alt="Emploi du temps" className="h-5 w-5" />,
+    },
+    {
+      name: 'Notes',
+      href: 'https://notes.iut-bm.univ-fcomte.fr/',
+      icon: <img src={`https://www.google.com/s2/favicons?domain=notes.iut-bm.univ-fcomte.fr`} alt="Notes" className="h-5 w-5" />,
+    },
+  ];
 
   return (
     <header className="bg-white shadow">
@@ -25,29 +51,87 @@ export default function Header({ user, onLogout }: HeaderProps) {
               <p className="text-sm text-gray-500">Groupe {user.category}</p>
             </div>
           </div>
-          <div className="flex items-center space-x-4">
+
+          {/* Desktop Navigation */}
+          <div className="hidden md:flex items-center space-x-4 -ml-4">
+            {links.map((link) => (
+              <a
+                key={link.name}
+                href={link.href}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center px-3 py-2 rounded-md hover:bg-gray-100 text-gray-700 transition-colors"
+              >
+                {link.icon}
+                <span className="ml-2">{link.name}</span>
+              </a>
+            ))}
+
+            <div className="ml-auto flex items-center space-x-4">
+              <a
+                href="https://github.com/gh-Constant/IUT-homework"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center px-4 py-2 rounded-md bg-gray-900 text-white hover:bg-gray-700 transition-colors"
+              >
+                <Github className="h-5 w-5 mr-2" />
+                Contribute
+              </a>
+              
+              <button
+                onClick={handleLogout}
+                className="flex items-center text-gray-600 hover:text-gray-900"
+              >
+                <LogOut className="h-5 w-5 mr-2" />
+                Déconnexion
+              </button>
+            </div>
+          </div>
+
+          {/* Mobile Menu Button */}
+          <div className="md:hidden">
+            <button
+              onClick={() => setIsMenuOpen(!isMenuOpen)}
+              className="p-2 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+            >
+              <Menu className="h-6 w-6" />
+            </button>
+          </div>
+        </div>
+
+        {/* Mobile Navigation */}
+        {isMenuOpen && (
+          <div className="md:hidden mt-4 space-y-2">
+            {links.map((link) => (
+              <a
+                key={link.name}
+                href={link.href}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center px-3 py-2 rounded-md hover:bg-gray-100 text-gray-700 transition-colors"
+              >
+                {link.icon}
+                <span className="ml-2">{link.name}</span>
+              </a>
+            ))}
             <a
               href="https://github.com/gh-Constant/IUT-homework"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center px-4 py-2 rounded-md bg-gray-900 text-white hover:bg-gray-700 transition-colors"
+              className="flex items-center px-3 py-2 rounded-md bg-gray-900 text-white hover:bg-gray-700 transition-colors"
             >
-              <div className="relative mr-2">
-                <div className="absolute inset-0 bg-black rounded-full"></div>
-                <Github className="h-5 w-5 relative z-10" />
-              </div>
+              <Github className="h-5 w-5 mr-2" />
               Contribute
             </a>
-            
             <button
               onClick={handleLogout}
-              className="flex items-center text-gray-600 hover:text-gray-900"
+              className="flex items-center w-full px-3 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md"
             >
               <LogOut className="h-5 w-5 mr-2" />
               Déconnexion
             </button>
           </div>
-        </div>
+        )}
       </div>
     </header>
   );
