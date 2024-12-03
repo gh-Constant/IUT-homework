@@ -1,0 +1,41 @@
+/* iOS-specific styles */
+.ios {
+  --safe-area-top: env(safe-area-inset-top);
+  --safe-area-bottom: env(safe-area-inset-bottom);
+  padding-top: var(--safe-area-top);
+  padding-bottom: var(--safe-area-bottom);
+}
+
+/* Android-specific styles */
+.android {
+  --safe-area-top: 0px;
+  --safe-area-bottom: 0px;
+}
+
+/* Mobile-specific adjustments */
+@media (max-width: 768px) {
+  .mobile-header {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    padding-top: var(--safe-area-top);
+  }
+
+  .mobile-content {
+    padding-bottom: var(--safe-area-bottom);
+  }
+
+  /* Improve touch targets */
+  button, 
+  [role="button"],
+  input,
+  select {
+    min-height: 44px;
+  }
+
+  /* Add pull-to-refresh indicator space */
+  .refresh-indicator {
+    height: 50px;
+    margin-top: -50px;
+  }
+} 

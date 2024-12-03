@@ -7,9 +7,15 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "build:mobile": "npm run build && npx cap sync",
+    "ios": "npm run build:mobile && npx cap open ios",
+    "android": "npm run build:mobile && npx cap open android"
   },
   "dependencies": {
+    "@capacitor/android": "^5.7.8",
+    "@capacitor/core": "^5.7.8",
+    "@capacitor/ios": "^5.7.8",
     "@fullcalendar/core": "^6.1.11",
     "@fullcalendar/daygrid": "^6.1.11",
     "@fullcalendar/react": "^6.1.11",
@@ -28,11 +34,12 @@
     "react-quill": "^2.0.0",
     "semver": "^7.6.3",
     "tar": "^7.4.3",
-    "undici": "^6.21.0",
+    "undici": "^7.0.0",
     "uuid": "^9.0.1",
     "vercel": "^39.1.2"
   },
   "devDependencies": {
+    "@capacitor/cli": "^5.7.8",
     "@tailwindcss/typography": "^0.5.15",
     "@types/js-cookie": "^3.0.6",
     "@types/react": "^18.3.12",
