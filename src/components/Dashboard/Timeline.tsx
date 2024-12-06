@@ -1,13 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Assignment, User } from '../../types';
-import { format, isPast, formatDistanceToNow, differenceInDays } from 'date-fns';
+import { format, isPast, formatDistanceToNow, differenceInDays, differenceInHours } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import { CheckCircle, Circle, Trash2, Edit } from 'lucide-react';
+import { CheckCircle, Circle, Trash2, Edit, ChevronUp, ChevronDown, Calendar, Globe } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import toast from 'react-hot-toast';
 import DOMPurify from 'dompurify';
 import EditAssignmentModal from './EditAssignmentModal';
 import Cookies from 'js-cookie';
+import { scheduleAssignmentReminder, cancelAssignmentReminder } from '../../utils/notifications';
 
 interface TimelineProps {
   assignments: Assignment[];
@@ -23,6 +24,59 @@ const extractLinks = (html: string): string[] => {
   return links.map(link => link.href);
 };
 
+const getTimeRemainingDisplay = (dueDate: string, isCompleted: boolean) => {
+  if (isCompleted) return { 
+    text: "TERMINÉ", 
+    class: "bg-success/10 text-success border-success/20" 
+  };
+
+  const now = new Date();
+  const due = new Date(dueDate);
+  const daysLeft = differenceInDays(due, now);
+  const hoursLeft = differenceInHours(due, now);
+
+  if (isPast(due)) return { 
+    text: "EN RETARD", 
+    class: "bg-red-950/5 text-red-950/50 border-red-950/10" 
+  };
+  
+  if (daysLeft === 0) {
+    if (hoursLeft <= 1) return { 
+      text: "MOINS D'UNE HEURE", 
+      class: "bg-red-100 text-red-800 border-red-200"
+    };
+    return { 
+      text: `${hoursLeft} HEURES RESTANTES`, 
+      class: "bg-red-100 text-red-800 border-red-200"
+    };
+  }
+  if (daysLeft === 1) return { 
+    text: "1 JOUR RESTANT", 
+    class: "bg-orange-100 text-orange-800 border-orange-200"
+  };
+  if (daysLeft <= 3) return { 
+    text: `${daysLeft} JOURS RESTANTS`, 
+    class: "bg-orange-100 text-orange-800 border-orange-200"
+  };
+  if (daysLeft <= 7) return { 
+    text: `${daysLeft} JOURS RESTANTS`, 
+    class: "bg-blue-100 text-blue-800 border-blue-200"
+  };
+  return { 
+    text: `${daysLeft} JOURS RESTANTS`, 
+    class: "bg-gray-100 text-gray-800 border-gray-200"
+  };
+};
+
+const getWebsiteLogo = (url: string): string => {
+  try {
+    const hostname = new URL(url).hostname;
+    return `https://www.google.com/s2/favicons?domain=${hostname}&sz=32`;
+  } catch {
+    return ''; // Return empty if URL is invalid
+  }
+};
+
 export default function Timeline({ assignments, onToggleComplete, currentUser, onAssignmentDeleted }: TimelineProps) {
   const [usernames, setUsernames] = useState<Record<string, string>>({});
   const [editingAssignment, setEditingAssignment] = useState<Assignment | null>(null);
@@ -33,6 +87,9 @@ export default function Timeline({ assignments, onToggleComplete, currentUser, o
     const savedCompletions = Cookies.get(cookieKey);
     return savedCompletions ? JSON.parse(savedCompletions) : {};
   });
+  const [expandedDescriptions, setExpandedDescriptions] = useState<Record<string, boolean>>({});
+  const [shouldShowButton, setShouldShowButton] = useState<Record<string, boolean>>({});
+  const descriptionRefs = useRef<Record<string, HTMLDivElement>>({});
 
   useEffect(() => {
     const fetchUsernames = async () => {
@@ -58,6 +115,18 @@ export default function Timeline({ assignments, onToggleComplete, currentUser, o
     };
 
     fetchUsernames();
+  }, [assignments]);
+
+  useEffect(() => {
+    assignments.forEach(assignment => {
+      const element = descriptionRefs.current[assignment.id];
+      if (element) {
+        setShouldShowButton(prev => ({
+          ...prev,
+          [assignment.id]: element.scrollHeight > 80 // 5 lines approximately
+        }));
+      }
+    });
   }, [assignments]);
 
   const sortedAssignments = [...assignments].sort(
@@ -235,26 +304,36 @@ export default function Timeline({ assignments, onToggleComplete, currentUser, o
       const cookieKey = `assignment_completions_${currentUser.id}`;
       const isCompleted = completions[assignmentId];
       
-      // Update local state
+      // Update local state first for immediate feedback
       const newCompletions = { ...completions };
       if (isCompleted) {
         delete newCompletions[assignmentId];
+        await scheduleAssignmentReminder(assignments.find(a => a.id === assignmentId)!);
       } else {
         newCompletions[assignmentId] = true;
+        await cancelAssignmentReminder(assignmentId);
+        // Show completion animation
+        toast.success('🎉 Devoir terminé !', {
+          icon: '✨',
+          style: {
+            border: '1px solid #10B981',
+            padding: '16px',
+            color: '#059669',
+            backgroundColor: '#ECFDF5',
+          },
+          duration: 2000,
+        });
       }
       
       // Save to user-specific cookie
       Cookies.set(cookieKey, JSON.stringify(newCompletions), {
-        expires: 365, // Cookie expires in 1 year
+        expires: 365,
         secure: true,
         sameSite: 'strict'
       });
       
       // Update state
       setCompletions(newCompletions);
-      
-      // Show success message
-      toast.success(isCompleted ? 'Devoir marqué comme non terminé' : 'Devoir marqué comme terminé');
 
     } catch (error) {
       console.error('Error toggling completion:', error);
@@ -262,7 +341,7 @@ export default function Timeline({ assignments, onToggleComplete, currentUser, o
     }
   };
 
-  // Update effect to use user-specific cookie
+  // Update effect to use user-specific 
   useEffect(() => {
     if (!currentUser) return;
     
@@ -280,160 +359,215 @@ export default function Timeline({ assignments, onToggleComplete, currentUser, o
     }
   }, [currentUser]); // Re-run when user changes
 
-  return (
-    <div className="bg-white p-4 rounded-lg shadow">
-      <h2 className="text-lg font-semibold mb-4">Timeline des devoirs</h2>
-      <div className="space-y-4">
-        {sortedAssignments.map((assignment) => {
-          const timeLeft = getTimeLeftDisplay(assignment.due_date);
-          const isPastDue = isPast(new Date(assignment.due_date));
+  const toggleDescription = (assignmentId: string) => {
+    setExpandedDescriptions(prev => ({
+      ...prev,
+      [assignmentId]: !prev[assignmentId]
+    }));
+  };
 
-          return (
-            <div
-              key={assignment.id}
-              className={`p-4 rounded-lg border transition-all ${
-                completions[assignment.id] 
-                  ? 'border-success bg-green-50' 
-                  : isPastDue 
-                    ? 'border-gray-300 bg-gray-100/50 opacity-60' 
-                    : 'border-primary'
+  const getUrgencyStatus = (dueDate: string) => {
+    const now = new Date();
+    const due = new Date(dueDate);
+    const daysLeft = differenceInDays(due, now);
+    
+    if (isPast(due)) return { text: "En retard", class: "bg-red-100 text-red-800" };
+    if (daysLeft <= 1) return { text: "Urgent", class: "bg-red-100 text-red-800" };
+    if (daysLeft <= 3) return { text: "Bientôt", class: "bg-orange-100 text-orange-800" };
+    if (daysLeft <= 7) return { text: "Cette semaine", class: "bg-blue-100 text-blue-800" };
+    return { text: "À venir", class: "bg-gray-100 text-gray-800" };
+  };
+
+  return (
+    <div className="px-4 md:px-6 pb-[calc(env(safe-area-inset-bottom,_1rem)_+_5rem)] max-w-4xl mx-auto space-y-4">
+      {sortedAssignments.map((assignment) => {
+        const timeRemaining = getTimeRemainingDisplay(assignment.due_date, completions[assignment.id]);
+        const formattedDate = format(new Date(assignment.due_date), 'dd/MM/yyyy');
+        const canEdit = canEditAssignment(assignment);
+        const { canDelete } = canDeleteAssignment(assignment);
+
+        return (
+          <div
+            key={assignment.id}
+            className={`rounded-xl border shadow-sm hover:shadow-md transition-all overflow-hidden ${
+              completions[assignment.id] 
+                ? 'border-success/20 bg-success/5' 
+                : isPast(new Date(assignment.due_date)) 
+                  ? 'border-red-950/10 bg-red-950/5' 
+                  : 'border-primary/20 hover:border-primary/30'
+            }`}
+          >
+            {/* Time remaining banner - now showing completion status */}
+            <div 
+              className={`w-full px-4 py-3 ${
+                getTimeRemainingDisplay(assignment.due_date, completions[assignment.id]).class
+              } border-b font-bold text-center text-lg md:text-xl tracking-wide ${
+                isPast(new Date(assignment.due_date)) && !completions[assignment.id] 
+                  ? 'opacity-50' 
+                  : ''
               }`}
             >
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h3 className="font-semibold">{assignment.title}</h3>
-                    <span className="text-xs px-2 py-1 bg-gray-100 rounded-full">
-                      {assignment.target_type === 'personal' ? (
-                        <span className="flex items-center gap-1">
-                          Personnel ({getTargetDisplay(assignment)})
-                        </span>
-                      ) : (
-                        <span>
-                          {assignment.target_type === 'global' ? 'Tout le monde' : getTargetDisplay(assignment)}
-                        </span>
-                      )}
-                    </span>
+              {getTimeRemainingDisplay(assignment.due_date, completions[assignment.id]).text}
+            </div>
+
+            {/* Main card content */}
+            <div className={`p-4 ${
+              isPast(new Date(assignment.due_date)) && !completions[assignment.id] 
+                ? 'opacity-50' 
+                : ''
+            }`}>
+              <div className="flex flex-col gap-3">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-semibold text-gray-900 text-lg">{assignment.title}</h3>
+                    <div className="flex items-center gap-2 mt-1.5">
+                      <span className="text-sm text-gray-600 flex items-center">
+                        <Calendar className="w-4 h-4 mr-1.5" />
+                        Pour le {formattedDate}
+                      </span>
+                      <span className="text-sm text-gray-600">
+                        • Par {usernames[assignment.created_by] || 'Chargement...'}
+                      </span>
+                    </div>
                   </div>
-                  <p className="text-sm text-gray-500">{assignment.subject}</p>
-                  <p className="text-sm text-gray-500">
-                    Créateur : {usernames[assignment.created_by] || 'Inconnu'}
-                  </p>
-                  <div className="flex items-center gap-2 mt-1">
-                    <p className="text-sm text-gray-500">
-                      {format(new Date(assignment.due_date), 'PPP', { locale: fr })}
-                    </p>
-                    <span className={`text-sm ${timeLeft.color}`}>
-                      • {timeLeft.text}
-                    </span>
-                    <span className="text-sm text-gray-500">
-                      ({timeLeft.timeAgo})
-                    </span>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  {(() => {
-                    const { canDelete } = canDeleteAssignment(assignment);
-                    if (canDelete) {
-                      return (
-                        <button
-                          onClick={() => handleDeleteAssignment(assignment)}
-                          className="p-1 rounded-full hover:bg-red-50"
-                          title="Supprimer le devoir"
-                        >
-                          <Trash2 className="h-5 w-5 text-red-500" />
-                        </button>
-                      );
-                    } else {
-                      return (
-                        <button
-                          className="p-1 rounded-full cursor-not-allowed opacity-50"
-                          title="Vous n'êtes pas autorisé à supprimer ce devoir"
-                          disabled
-                        >
-                          <Trash2 className="h-5 w-5 text-gray-400" />
-                        </button>
-                      );
-                    }
-                  })()}
-                  <button
-                    onClick={() => handleToggleComplete(assignment.id)}
-                    className={`p-1 rounded-full ${
-                      completions[assignment.id] ? 'text-success' : 'text-gray-400'
-                    }`}
-                  >
-                    {completions[assignment.id] ? (
-                      <CheckCircle className="h-6 w-6" />
-                    ) : (
-                      <Circle className="h-6 w-6" />
-                    )}
-                  </button>
-                  {(() => {
-                    const canEdit = canEditAssignment(assignment);
-                    return (
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    {canEdit && (
                       <button
-                        onClick={() => canEdit && setEditingAssignment(assignment)}
-                        className={`p-1 rounded-full ${
-                          canEdit 
-                            ? 'hover:bg-blue-50 text-blue-500' 
-                            : 'cursor-not-allowed opacity-50'
-                        }`}
-                        title={canEdit ? "Modifier le devoir" : "Vous n'êtes pas autorisé à modifier ce devoir"}
-                        disabled={!canEdit}
+                        onClick={() => setEditingAssignment(assignment)}
+                        className="p-1.5 rounded-full hover:bg-blue-50 text-blue-500 transition-colors"
+                        title="Modifier le devoir"
                       >
                         <Edit className="h-5 w-5" />
                       </button>
-                    );
-                  })()}
+                    )}
+                    <button
+                      onClick={() => handleToggleComplete(assignment.id)}
+                      className={`p-1.5 rounded-full transition-colors ${
+                        completions[assignment.id] 
+                          ? 'text-success hover:bg-success/10' 
+                          : 'text-gray-400 hover:bg-gray-50'
+                      }`}
+                    >
+                      {completions[assignment.id] ? (
+                        <CheckCircle className="h-5 w-5" />
+                      ) : (
+                        <Circle className="h-5 w-5" />
+                      )}
+                    </button>
+                    {canDelete && (
+                      <button
+                        onClick={() => handleDeleteAssignment(assignment)}
+                        className="p-1.5 rounded-full hover:bg-red-50 text-red-500 transition-colors"
+                        title="Supprimer le devoir"
+                      >
+                        <Trash2 className="h-5 w-5" />
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
-              {assignment.description && assignment.description.trim() !== '' && (
-                <div 
-                  className="mt-2 text-gray-600 prose max-w-none prose-strong:font-bold prose-em:italic"
-                  dangerouslySetInnerHTML={{ 
-                    __html: DOMPurify.sanitize(assignment.description, {
-                      ALLOWED_TAGS: ['p', 'strong', 'em', 'ul', 'ol', 'li', 'br'],
-                      ALLOWED_ATTR: []
-                    })
-                  }}
-                />
-              )}
-              {assignment.links && assignment.links.length > 0 && (
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {assignment.links.map((link, index) => {
-                    const domain = new URL(link.url).hostname;
-                    return (
-                      <a 
-                        key={index}
-                        href={link.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors border border-gray-200"
-                      >
-                        <img 
-                          src={`https://www.google.com/s2/favicons?domain=${domain}&sz=32`}
-                          alt=""
-                          className="w-4 h-4"
-                        />
-                        <span className="text-sm text-gray-600">{link.title}</span>
-                      </a>
-                    );
-                  })}
-                </div>
-              )}
             </div>
-          );
-        })}
-      </div>
+
+            {/* Add links section here, before the expandable content */}
+            {assignment.links && assignment.links.length > 0 && (
+              <div className="px-4 py-2 flex flex-wrap gap-2">
+                {assignment.links.map((link: { url: string; title: string }, index: number) => (
+                  <a
+                    key={index}
+                    href={link.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg text-gray-700 text-sm transition-colors"
+                  >
+                    {getWebsiteLogo(link.url) ? (
+                      <img src={getWebsiteLogo(link.url)} alt="" className="w-4 h-4" />
+                    ) : (
+                      <Globe className="w-4 h-4" />
+                    )}
+                    {link.title || 'Voir le lien'}
+                  </a>
+                ))}
+              </div>
+            )}
+
+            {/* Expandable content */}
+            {assignment.description && (
+              <>
+                <div 
+                  ref={el => {
+                    if (el) descriptionRefs.current[assignment.id] = el;
+                  }}
+                  className={`px-4 overflow-hidden transition-all duration-200 ${
+                    !expandedDescriptions[assignment.id] ? 'max-h-0' : 'max-h-[1000px] pb-4'
+                  }`}
+                >
+                  <div className="pt-4 border-t">
+                    {/* Target groups/users info */}
+                    <div className="mb-3">
+                      <span className="text-sm font-medium text-gray-700">Pour : </span>
+                      <span className="text-sm text-gray-600">
+                        {assignment.target_type === 'personal' 
+                          ? `Personnel (${getTargetDisplay(assignment)})` 
+                          : assignment.target_type === 'global' 
+                            ? 'Tout le monde' 
+                            : getTargetDisplay(assignment)}
+                      </span>
+                    </div>
+
+                    {/* Description */}
+                    <div 
+                      className="text-gray-600 prose max-w-none prose-strong:font-bold prose-em:italic"
+                      dangerouslySetInnerHTML={{ 
+                        __html: DOMPurify.sanitize(assignment.description, {
+                          ALLOWED_TAGS: ['p', 'strong', 'em', 'ul', 'ol', 'li', 'br'],
+                          ALLOWED_ATTR: []
+                        })
+                      }}
+                    />
+
+                    {/* Delete button */}
+                    {canDelete && (
+                      <button
+                        onClick={() => handleDeleteAssignment(assignment)}
+                        className="mt-4 w-full py-2 px-4 bg-red-100 hover:bg-red-200 text-red-700 rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                        Supprimer le devoir
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => toggleDescription(assignment.id)}
+                  className="w-full py-2 px-4 bg-gray-100 hover:bg-gray-200 rounded-b-xl text-gray-700 font-medium transition-colors flex items-center justify-center gap-2"
+                >
+                  {expandedDescriptions[assignment.id] ? (
+                    <>
+                      <ChevronUp className="h-4 w-4" />
+                      Voir moins
+                    </>
+                  ) : (
+                    <>
+                      <ChevronDown className="h-4 w-4" />
+                      Voir plus
+                    </>
+                  )}
+                </button>
+              </>
+            )}
+          </div>
+        );
+      })}
       {editingAssignment && (
         <EditAssignmentModal
-          isOpen={true}
+          isOpen={!!editingAssignment}
           onClose={() => setEditingAssignment(null)}
-          currentUser={currentUser}
+          currentUser={currentUser!}
           assignment={editingAssignment}
           onAssignmentUpdated={() => {
             setEditingAssignment(null);
-            onAssignmentDeleted(); // reuse this prop to refresh the list
+            onAssignmentDeleted(); // Using the existing prop to refresh the list
           }}
         />
       )}

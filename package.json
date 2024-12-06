@@ -1,5 +1,5 @@
 {
-  "name": "systeme-gestion-devoirs",
+  "name": "iut-devoirs",
   "private": true,
   "version": "1.0.0",
   "type": "module",
@@ -14,10 +14,12 @@
   },
   "dependencies": {
     "@capacitor/android": "^5.7.8",
-    "@capacitor/core": "^5.7.8",
+    "@capacitor/core": "^6.2.0",
     "@capacitor/ios": "^5.7.8",
+    "@capacitor/local-notifications": "^6.1.1",
     "@fullcalendar/core": "^6.1.11",
     "@fullcalendar/daygrid": "^6.1.11",
+    "@fullcalendar/interaction": "^6.1.15",
     "@fullcalendar/react": "^6.1.11",
     "@fullcalendar/timegrid": "^6.1.11",
     "@headlessui/react": "^1.7.18",
@@ -34,6 +36,9 @@
     "react-quill": "^2.0.0",
     "semver": "^7.6.3",
     "tar": "^7.4.3",
+    "tsparticles": "^3.7.1",
+    "tsparticles-engine": "^2.12.0",
+    "tsparticles-slim": "^2.12.0",
     "undici": "^7.0.0",
     "uuid": "^9.0.1",
     "vercel": "^39.1.2"

@@ -98,25 +98,25 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
     <div className="min-h-screen bg-gray-100">
       <Header user={user} onLogout={onLogout} />
       
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="flex justify-between items-center mb-6">
-          <div className="flex space-x-4">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
+        <div className="flex flex-col sm:flex-row justify-between items-center gap-4 sm:gap-6 mb-4 sm:mb-6">
+          <div className="w-full sm:w-auto flex space-x-2 sm:space-x-4">
             <button
               onClick={() => setView('timeline')}
-              className={`px-4 py-2 rounded-md ${
+              className={`flex-1 sm:flex-none px-3 sm:px-4 py-2 rounded-md text-sm sm:text-base transition-colors ${
                 view === 'timeline'
                   ? 'bg-indigo-600 text-white'
-                  : 'bg-white text-gray-700'
+                  : 'bg-white text-gray-700 hover:bg-gray-50'
               }`}
             >
               Timeline
             </button>
             <button
               onClick={() => setView('calendar')}
-              className={`px-4 py-2 rounded-md ${
+              className={`flex-1 sm:flex-none px-3 sm:px-4 py-2 rounded-md text-sm sm:text-base transition-colors ${
                 view === 'calendar'
                   ? 'bg-indigo-600 text-white'
-                  : 'bg-white text-gray-700'
+                  : 'bg-white text-gray-700 hover:bg-gray-50'
               }`}
             >
               Calendrier
@@ -125,9 +125,9 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
           
           <button
             onClick={() => setIsNewAssignmentModalOpen(true)}
-            className="flex items-center px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
+            className="w-full sm:w-auto flex items-center justify-center px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 text-sm sm:text-base transition-colors"
           >
-            <Plus className="h-5 w-5 mr-2" />
+            <Plus className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
             Nouveau devoir
           </button>
         </div>

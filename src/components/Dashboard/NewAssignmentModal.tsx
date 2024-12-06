@@ -339,7 +339,17 @@ export default function NewAssignmentModal({
                           key={index}
                           className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 rounded-md border border-gray-200 group"
                         >
-                          <span className="text-sm text-gray-600">{link.title}</span>
+                          <div className="flex flex-col">
+                            <span className="text-sm text-gray-600">{link.title}</span>
+                            <a
+                              href={link.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-sm text-primary hover:underline"
+                            >
+                              {link.url}
+                            </a>
+                          </div>
                           <button
                             type="button"
                             onClick={() => removeLink(index)}

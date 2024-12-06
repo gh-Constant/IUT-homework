@@ -53,7 +53,7 @@ export default function Header({ user, onLogout }: HeaderProps) {
           </div>
 
           {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center space-x-4 -ml-4">
+          <div className="hidden md:flex items-center space-x-4">
             {links.map((link) => (
               <a
                 key={link.name}
@@ -63,7 +63,7 @@ export default function Header({ user, onLogout }: HeaderProps) {
                 className="flex items-center px-3 py-2 rounded-md hover:bg-gray-100 text-gray-700 transition-colors"
               >
                 {link.icon}
-                <span className="ml-2">{link.name}</span>
+                <span className="ml-2 hidden lg:inline">{link.name}</span>
               </a>
             ))}
 
@@ -74,16 +74,16 @@ export default function Header({ user, onLogout }: HeaderProps) {
                 rel="noopener noreferrer"
                 className="flex items-center px-4 py-2 rounded-md bg-gray-900 text-white hover:bg-gray-700 transition-colors"
               >
-                <Github className="h-5 w-5 mr-2" />
-                Contribute
+                <Github className="h-5 w-5" />
+                <span className="ml-2 hidden lg:inline">Contribute</span>
               </a>
               
               <button
                 onClick={handleLogout}
                 className="flex items-center text-gray-600 hover:text-gray-900"
               >
-                <LogOut className="h-5 w-5 mr-2" />
-                Déconnexion
+                <LogOut className="h-5 w-5" />
+                <span className="ml-2 hidden lg:inline">Déconnexion</span>
               </button>
             </div>
           </div>
@@ -120,15 +120,15 @@ export default function Header({ user, onLogout }: HeaderProps) {
               rel="noopener noreferrer"
               className="flex items-center px-3 py-2 rounded-md bg-gray-900 text-white hover:bg-gray-700 transition-colors"
             >
-              <Github className="h-5 w-5 mr-2" />
-              Contribute
+              <Github className="h-5 w-5" />
+              <span className="ml-2">Contribute</span>
             </a>
             <button
               onClick={handleLogout}
               className="flex items-center w-full px-3 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md"
             >
-              <LogOut className="h-5 w-5 mr-2" />
-              Déconnexion
+              <LogOut className="h-5 w-5" />
+              <span className="ml-2">Déconnexion</span>
             </button>
           </div>
         )}

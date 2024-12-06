@@ -16,6 +16,11 @@ const config: CapacitorConfig = {
         SUPABASE_URL: process.env.VITE_SUPABASE_URL,
         SUPABASE_ANON_KEY: process.env.VITE_SUPABASE_ANON_KEY
       }
+    },
+    LocalNotifications: {
+      smallIcon: "ic_stat_icon_config_sample",
+      iconColor: "#4F46E5",
+      sound: "beep.wav",
     }
   },
   ios: {

@@ -5,9 +5,10 @@ import { Dialog } from '@headlessui/react';
 interface ContributePopupProps {
   isOpen: boolean;
   onClose: () => void;
+  lastCommitMessage?: string;
 }
 
-export default function ContributePopup({ isOpen, onClose }: ContributePopupProps) {
+export default function ContributePopup({ isOpen, onClose, lastCommitMessage }: ContributePopupProps) {
   const handleDoNotShowAgain = () => {
     localStorage.setItem('hideContributePopup', 'true');
     onClose();
@@ -32,6 +33,12 @@ export default function ContributePopup({ isOpen, onClose }: ContributePopupProp
           </div>
           
           <div className="mt-4 text-gray-600">
+            {lastCommitMessage && (
+              <div className="mb-4 p-3 bg-gray-50 rounded-lg">
+                <p className="text-sm font-medium text-gray-700">Dernière mise à jour :</p>
+                <p className="text-sm text-gray-600">{lastCommitMessage}</p>
+              </div>
+            )}
             <p className="mb-4">
               Ce projet est open source et nous accueillons toutes les contributions ! 
               Vous pouvez nous aider à améliorer l'application en :
