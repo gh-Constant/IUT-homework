@@ -1,196 +1,174 @@
-import React from 'react';
-import FullCalendar from '@fullcalendar/react';
-import dayGridPlugin from '@fullcalendar/daygrid';
-import timeGridPlugin from '@fullcalendar/timegrid';
-import interactionPlugin from '@fullcalendar/interaction';
-import { Assignment } from '../../types';
-import { format } from 'date-fns';
+import React, { useState } from 'react';
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isToday, isSameDay } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import toast from 'react-hot-toast';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { Assignment } from '../../types';
 
 interface CalendarProps {
   assignments: Assignment[];
 }
 
 export default function Calendar({ assignments }: CalendarProps) {
-  const events = assignments.map(assignment => ({
-    id: assignment.id,
-    title: assignment.title,
-    start: assignment.due_date,
-    backgroundColor: assignment.completed ? '#10B981' : '#4F46E5',
-    borderColor: assignment.completed ? '#10B981' : '#4F46E5',
-    classNames: ['text-sm', 'rounded-lg', 'font-medium', 'cursor-pointer'],
-    extendedProps: {
-      description: assignment.description,
-    }
-  }));
+  const [currentDate, setCurrentDate] = useState(new Date());
+  const [view, setView] = useState<'month' | 'week'>('month');
 
-  const handleEventClick = (info: any) => {
-    toast(info.event.title, {
-      duration: 3000,
-      position: 'bottom-center',
-      style: {
-        background: '#f8fafc',
-        color: '#1f2937',
-        border: '1px solid #e2e8f0',
-        padding: '1rem',
-        borderRadius: '0.5rem',
-        maxWidth: '90vw',
-        wordBreak: 'break-word'
-      },
-    });
+  const monthStart = startOfMonth(currentDate);
+  const monthEnd = endOfMonth(currentDate);
+  const days = eachDayOfInterval({ start: monthStart, end: monthEnd });
+
+  const getAssignmentsForDay = (date: Date) => {
+    return assignments.filter(assignment => 
+      isSameDay(new Date(assignment.due_date), date)
+    );
   };
 
+  const truncateTitle = (title: string) => {
+    const words = title.split(' ');
+    if (words.length <= 2) return title;
+    return words.slice(0, 2).join(' ') + '...';
+  };
+
+  const previousMonth = () => {
+    setCurrentDate(prev => new Date(prev.getFullYear(), prev.getMonth() - 1));
+  };
+
+  const nextMonth = () => {
+    setCurrentDate(prev => new Date(prev.getFullYear(), prev.getMonth() + 1));
+  };
+
+  const getDayClasses = (date: Date, hasAssignments: boolean) => {
+    const baseClasses = "relative h-24 sm:h-32 border-b border-r dark:border-gray-800 p-1";
+    const dayClasses = [baseClasses];
+
+    if (!isSameMonth(date, currentDate)) {
+      dayClasses.push("bg-gray-50/50 dark:bg-gray-900/50");
+    }
+
+    if (isToday(date)) {
+      dayClasses.push("bg-blue-50 dark:bg-blue-900/20");
+    }
+
+    if (!hasAssignments) {
+      dayClasses.push("opacity-60");
+    }
+
+    return dayClasses.join(" ");
+  };
+
+  const weekDays = ['dim.', 'lun.', 'mar.', 'mer.', 'jeu.', 'ven.', 'sam.'];
+
   return (
-    <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
-      <div className="fullcalendar-custom">
-        <FullCalendar
-          plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
-          initialView="dayGridMonth"
-          locale="fr"
-          headerToolbar={{
-            left: 'prev,next',
-            center: 'title',
-            right: 'dayGridMonth,timeGridWeek',
-          }}
-          events={events}
-          height="auto"
-          buttonText={{
-            today: 'Aujourd\'hui',
-            month: 'Mois',
-            week: 'Semaine',
-            day: 'Jour',
-          }}
-          dayMaxEvents={2}
-          moreLinkText={count => `+${count} autres`}
-          eventDisplay="block"
-          eventClick={handleEventClick}
-          views={{
-            dayGridMonth: {
-              titleFormat: { year: 'numeric', month: 'long' },
-              dayHeaderFormat: { weekday: 'short' },
-            },
-            timeGridWeek: {
-              titleFormat: { year: 'numeric', month: 'long' },
-              dayHeaderFormat: { weekday: 'short', day: 'numeric' },
-            },
-          }}
-        />
+    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden">
+      <div className="p-4 flex items-center justify-between border-b dark:border-gray-700">
+        <div className="flex items-center gap-4">
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-white capitalize">
+            {format(currentDate, 'MMMM yyyy', { locale: fr })}
+          </h2>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="flex">
+            <button
+              onClick={() => setView('month')}
+              className={`px-3 py-1 text-sm rounded-l-md ${
+                view === 'month'
+                  ? 'bg-indigo-600 text-white dark:bg-indigo-500'
+                  : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300'
+              }`}
+            >
+              Mois
+            </button>
+            <button
+              onClick={() => setView('week')}
+              className={`px-3 py-1 text-sm rounded-r-md ${
+                view === 'week'
+                  ? 'bg-indigo-600 text-white dark:bg-indigo-500'
+                  : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300'
+              }`}
+            >
+              Semaine
+            </button>
+          </div>
+          <div className="flex items-center border dark:border-gray-700 rounded-md">
+            <button
+              onClick={previousMonth}
+              className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700"
+            >
+              <ChevronLeft className="h-5 w-5 text-gray-600 dark:text-gray-400" />
+            </button>
+            <button
+              onClick={nextMonth}
+              className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700"
+            >
+              <ChevronRight className="h-5 w-5 text-gray-600 dark:text-gray-400" />
+            </button>
+          </div>
+        </div>
       </div>
 
-      <style jsx global>{`
-        .fullcalendar-custom .fc {
-          max-width: 100%;
-          font-family: inherit;
-        }
+      <div className="grid grid-cols-7">
+        {weekDays.map(day => (
+          <div
+            key={day}
+            className="py-2 text-center text-sm font-medium text-gray-500 dark:text-gray-400 border-b dark:border-gray-800"
+          >
+            {day}
+          </div>
+        ))}
 
-        /* Header Styling */
-        .fullcalendar-custom .fc-toolbar-title {
-          font-size: 1.25rem !important;
-          font-weight: 600;
-          color: #1f2937;
-        }
+        {days.map(day => {
+          const dayAssignments = getAssignmentsForDay(day);
+          const hasAssignments = dayAssignments.length > 0;
 
-        .fullcalendar-custom .fc-button {
-          background: #f3f4f6 !important;
-          border: 1px solid #e5e7eb !important;
-          color: #4b5563 !important;
-          font-weight: 500 !important;
-          padding: 0.5rem 1rem !important;
-          height: auto !important;
-          box-shadow: none !important;
-        }
+          return (
+            <div
+              key={day.toString()}
+              className={getDayClasses(day, hasAssignments)}
+            >
+              <div className={`flex items-start justify-between ${!hasAssignments ? 'opacity-60' : ''}`}>
+                <span
+                  className={`text-sm ${
+                    !isSameMonth(day, currentDate)
+                      ? 'text-gray-400 dark:text-gray-600'
+                      : isToday(day)
+                        ? 'text-blue-600 dark:text-blue-400 font-semibold'
+                        : 'text-gray-900 dark:text-gray-100'
+                  } ${!hasAssignments ? 'text-xs' : ''}`}
+                >
+                  {format(day, 'd')}
+                </span>
+                {hasAssignments && (
+                  <span className="text-xs font-medium text-gray-500 dark:text-gray-400">
+                    {dayAssignments.length} devoir{dayAssignments.length > 1 ? 's' : ''}
+                  </span>
+                )}
+              </div>
 
-        .fullcalendar-custom .fc-button-active {
-          background: #4f46e5 !important;
-          color: white !important;
-          border-color: #4f46e5 !important;
-        }
+              {hasAssignments && (
+                <div className="mt-1 space-y-1">
+                  {dayAssignments.map((assignment, index) => {
+                    const isCompleted = false; // À remplacer par la vraie logique de complétion
+                    const bgColorClass = assignment.target_type === 'personal' 
+                      ? 'bg-emerald-500 dark:bg-emerald-600'
+                      : assignment.target_type === 'group'
+                        ? 'bg-indigo-500 dark:bg-indigo-600'
+                        : 'bg-blue-500 dark:bg-blue-600';
 
-        /* Calendar Grid */
-        .fullcalendar-custom .fc-day {
-          background: white;
-        }
-
-        .fullcalendar-custom .fc-day-today {
-          background: #f8fafc !important;
-        }
-
-        .fullcalendar-custom .fc-day-header {
-          padding: 0.5rem 0 !important;
-          font-weight: 500;
-        }
-
-        .fullcalendar-custom .fc-daygrid-day-number {
-          padding: 0.5rem;
-          color: #64748b;
-        }
-
-        /* Events */
-        .fullcalendar-custom .fc-event {
-          padding: 0.25rem 0.5rem;
-          font-size: 0.875rem;
-          border-radius: 0.375rem;
-          margin: 1px 2px;
-          overflow: hidden;
-          white-space: nowrap;
-          text-overflow: ellipsis;
-          cursor: pointer;
-        }
-
-        .fullcalendar-custom .fc-event-title {
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-        }
-
-        .fullcalendar-custom .fc-more-link {
-          color: #6b7280;
-          font-weight: 500;
-        }
-
-        /* Mobile Optimizations */
-        @media (max-width: 640px) {
-          .fullcalendar-custom .fc-toolbar {
-            flex-direction: column;
-            gap: 1rem;
-          }
-
-          .fullcalendar-custom .fc-toolbar-title {
-            font-size: 1.125rem !important;
-          }
-
-          .fullcalendar-custom .fc-button {
-            padding: 0.375rem 0.75rem !important;
-            font-size: 0.875rem !important;
-          }
-
-          .fullcalendar-custom .fc-col-header-cell-cushion {
-            font-size: 0.875rem;
-          }
-
-          .fullcalendar-custom .fc-daygrid-day-number {
-            font-size: 0.875rem;
-          }
-
-          .fullcalendar-custom .fc-event {
-            padding: 0.125rem 0.25rem;
-            font-size: 0.75rem;
-          }
-          
-          .fullcalendar-custom .fc-event-title {
-            font-size: 0.75rem;
-            line-height: 1.2;
-          }
-        }
-
-        /* Hide unnecessary elements on mobile */
-        @media (max-width: 480px) {
-          .fullcalendar-custom .fc-timeGridWeek-button {
-            display: none !important;
-          }
-        }
-      `}</style>
+                    return (
+                      <div
+                        key={assignment.id}
+                        className={`text-xs px-1.5 py-0.5 rounded ${bgColorClass} text-white truncate`}
+                        title={`${assignment.title} (${assignment.target_type})`}
+                      >
+                        {truncateTitle(assignment.title)}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }

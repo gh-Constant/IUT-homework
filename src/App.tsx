@@ -4,6 +4,7 @@ import AuthForm from './components/AuthForm';
 import Dashboard from './components/Dashboard';
 import { User } from './types';
 import Cookies from 'js-cookie';
+import { DarkModeProvider } from './contexts/DarkModeContext';
 
 function App() {
   const [user, setUser] = useState<User | null>(null);
@@ -29,14 +30,14 @@ function App() {
   };
 
   return (
-    <>
+    <DarkModeProvider>
       <Toaster position="top-right" />
       {!user ? (
         <AuthForm onSuccess={handleAuthSuccess} />
       ) : (
         <Dashboard user={user} onLogout={handleLogout} />
       )}
-    </>
+    </DarkModeProvider>
   );
 }
 

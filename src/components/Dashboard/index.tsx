@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Plus } from 'lucide-react';
 import { User, Assignment } from '../../types';
 import { supabase } from '../../lib/supabase';
@@ -21,47 +21,56 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
   const [isContributePopupOpen, setIsContributePopupOpen] = useState(
     !localStorage.getItem('hideContributePopup')
   );
-  const [view, setView] = useState<'timeline' | 'calendar'>('timeline');
+  const [view, setView] = useState<'timeline' | 'archive'>('timeline');
+  const [searchQuery, setSearchQuery] = useState('');
 
   const fetchAssignments = async () => {
-    console.log('Fetching assignments for user:', {
-      id: user.id,
-      category: user.category,
-      role: user.role
-    });
+    const { data, error } = await supabase
+      .from('assignments')
+      .select('*')
+      .order('due_date', { ascending: true });
 
-    try {
-      // Get all assignments
-      const { data: allData, error } = await supabase
-        .from('assignments')
-        .select('*');
+    if (!error && data) {
+      // Archiver automatiquement les devoirs passés
+      const now = new Date();
+      const updatedAssignments = await Promise.all(
+        data.map(async (assignment) => {
+          const dueDate = new Date(assignment.due_date);
+          if (!assignment.is_archived && dueDate < now) {
+            const { error: updateError } = await supabase
+              .from('assignments')
+              .update({ is_archived: true })
+              .eq('id', assignment.id);
 
-      if (error) throw error;
-
-      // Log raw data before filtering
-      console.log('Raw data from database:', allData);
-
-      // Filter assignments based on user role and targets
-      const assignments = user.role === 'admin' 
-        ? allData // Admin sees all assignments
-        : allData.filter(assignment => {
-            // Regular users only see assignments targeted to them
-            if (assignment.target_type === 'global') return true;
-            if (assignment.target_type === 'group') {
-              return assignment.target_groups.includes(user.category);
+            if (!updateError) {
+              return { ...assignment, is_archived: true };
             }
-            if (assignment.target_type === 'personal') {
-              return assignment.target_users.includes(user.id);
-            }
-            return false;
-          });
+          }
+          return assignment;
+        })
+      );
 
-      console.log('Filtered assignments:', assignments);
-      setAssignments(assignments);
-    } catch (error) {
-      console.error('Error fetching assignments:', error);
+      setAssignments(updatedAssignments);
     }
   };
+
+  const filteredAssignments = useMemo(() => {
+    const now = new Date();
+    const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000); // 1 jour en millisecondes
+
+    return assignments.filter(assignment => {
+      const dueDate = new Date(assignment.due_date);
+      const isArchived = dueDate < oneDayAgo;
+      
+      if (view === 'archive') {
+        // Dans la vue archive, montrer les devoirs passés depuis plus d'un jour
+        return isArchived;
+      } else {
+        // Dans la vue timeline, montrer les devoirs à venir et ceux passés depuis moins d'un jour
+        return !isArchived;
+      }
+    });
+  }, [assignments, view]);
 
   const fetchUsers = async () => {
     if (user.role === 'admin') {
@@ -95,7 +104,7 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div className="min-h-screen bg-gray-100 dark:bg-gray-900">
       <Header user={user} onLogout={onLogout} />
       
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
@@ -105,52 +114,65 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
               onClick={() => setView('timeline')}
               className={`flex-1 sm:flex-none px-3 sm:px-4 py-2 rounded-md text-sm sm:text-base transition-colors ${
                 view === 'timeline'
-                  ? 'bg-indigo-600 text-white'
-                  : 'bg-white text-gray-700 hover:bg-gray-50'
+                  ? 'bg-indigo-600 text-white dark:bg-indigo-500'
+                  : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700'
               }`}
             >
               Timeline
             </button>
             <button
-              onClick={() => setView('calendar')}
+              onClick={() => setView('archive')}
               className={`flex-1 sm:flex-none px-3 sm:px-4 py-2 rounded-md text-sm sm:text-base transition-colors ${
-                view === 'calendar'
-                  ? 'bg-indigo-600 text-white'
-                  : 'bg-white text-gray-700 hover:bg-gray-50'
+                view === 'archive'
+                  ? 'bg-indigo-600 text-white dark:bg-indigo-500'
+                  : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700'
               }`}
             >
-              Calendrier
+              Archive
             </button>
           </div>
-          
+
           <button
             onClick={() => setIsNewAssignmentModalOpen(true)}
-            className="w-full sm:w-auto flex items-center justify-center px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 text-sm sm:text-base transition-colors"
+            className="w-full sm:w-auto flex items-center justify-center px-4 py-2 bg-indigo-600 dark:bg-indigo-500 text-white rounded-md hover:bg-indigo-700 dark:hover:bg-indigo-600 text-sm sm:text-base transition-colors"
           >
             <Plus className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
             Nouveau devoir
           </button>
         </div>
 
-        <div className="space-y-6">
-          {view === 'timeline' ? (
+        <div className="flex flex-col lg:flex-row gap-6">
+          <div className="flex-1 space-y-6">
+            {view === 'archive' && (
+              <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm">
+                <input
+                  type="text"
+                  placeholder="Rechercher dans les archives..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400"
+                />
+              </div>
+            )}
             <Timeline
-              assignments={assignments}
+              assignments={filteredAssignments}
               onToggleComplete={handleToggleComplete}
               currentUser={user}
               onAssignmentDeleted={fetchAssignments}
+              showArchived={view === 'archive'}
             />
-          ) : (
-            <Calendar assignments={assignments} />
-          )}
+          </div>
 
-          {user.role === 'admin' && (
-            <AdminPanel 
-              users={users} 
-              onUserDeleted={fetchUsers} 
-              currentUser={user}
-            />
-          )}
+          <div className="lg:w-80 xl:w-96 space-y-6">
+            <Calendar assignments={assignments} />
+            {user.role === 'admin' && (
+              <AdminPanel 
+                users={users} 
+                onUserDeleted={fetchUsers} 
+                currentUser={user}
+              />
+            )}
+          </div>
         </div>
 
         <NewAssignmentModal
